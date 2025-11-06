@@ -1,0 +1,33 @@
+name: Caliper Benchmarks
+version: "2.0.0"
+
+caliper:
+  blockchain: fabric
+
+channels:
+  # channelName of mychannel matches the name of the channel created by test network
+  - channelName: mychannel
+    # the chaincodeIDs of all the fabric chaincodes in caliper-benchmarks
+    contracts:
+    - id: fabcar
+    - id: fixed-asset
+    - id: marbles
+    - id: simple
+    - id: smallbank
+    - id: asset-transfer-basic
+
+organizations:
+  - mspid: Org1MSP
+    # Identities come from cryptogen created material for test-network
+    identities:
+      certificates:
+      - name: 'User1'
+        clientPrivateKey:
+          path: '{{ fabric_samples_dir }}/test-network-k8s/build/enrollments/org1/users/org1admin/msp/keystore/key.pem'
+
+        clientSignedCert:
+          path: '{{ fabric_samples_dir }}/test-network-k8s/build/enrollments/org1/users/org1admin/msp/signcerts/cert.pem'
+
+    connectionProfile:
+      path: 'networks/fabric/connection-profile.json'
+      discover: true

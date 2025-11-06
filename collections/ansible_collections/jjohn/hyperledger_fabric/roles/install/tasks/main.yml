@@ -1,0 +1,61 @@
+# SPDX-License-Identifier: MIT-0
+---
+# tasks file for hyperledger-fabric
+- name: Update and upgrade packages
+  ansible.builtin.apt:
+    update_cache: true
+  become: true
+
+- name: Install prerequisites
+  ansible.builtin.apt:
+    name:
+      - curl
+      - git
+      - jq
+    state: present
+  become: true
+
+- name: Remove existing Hyperledger Fabric working directory
+  ansible.builtin.file:
+    path: "{{ install_fabric_dir }}"
+    state: absent
+
+- name: Create Hyperledger Fabric working directory
+  ansible.builtin.file:
+    path: "{{ install_fabric_dir }}"
+    state: directory
+    mode: '0755'
+
+- name: Download Hyperledger Fabric install script
+  ansible.builtin.get_url:
+    url: "https://raw.githubusercontent.com/hyperledger/fabric/main/scripts/install-fabric.sh"
+    dest: "{{ install_fabric_dir }}/install-fabric.sh"
+    mode: '0755'
+
+- name: Install Hyperledger Fabric
+  ansible.builtin.command:
+    argv:
+      - ./install-fabric.sh
+      - --fabric-version
+      - "2.5.7"
+      - --ca-version
+      - "1.5.10"
+      - docker
+      - samples
+      - binary
+    chdir: "{{ install_fabric_dir }}"
+  changed_when: false
+
+- name: Add TEST_NETWORK_CLUSTER_RUNTIME env var in .bashrc
+  ansible.builtin.lineinfile:
+    path: .bashrc
+    line: export TEST_NETWORK_CLUSTER_RUNTIME=k3s
+
+- name: Reload shell
+  ansible.builtin.shell:
+    "{{ item }}"
+  with_items:
+    - source "{{ ansible_user_dir }}"/.bashrc
+  args:
+    executable: /usr/bin/bash
+  changed_when: false

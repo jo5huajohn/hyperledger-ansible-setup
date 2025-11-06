@@ -1,0 +1,53 @@
+---
+- name: Prepare all nodes
+  hosts: k3s_cluster
+  become: true
+  roles:
+    - common
+    - geerlingguy.docker
+
+- name: Create docker group and add ansible_user
+  hosts: k3s_cluster
+  vars:
+    user: "{{ ansible_user }}"
+  tasks:
+    - name: Add user to docker group
+      ansible.builtin.user:
+        name: "{{ user }}"
+        groups: docker
+        append: true
+      become: true
+
+    - name: Reset ssh connection to allow user changes to affect ansible user
+      ansible.builtin.meta:
+        reset_connection
+
+- name: Set up k3s server
+  hosts: server
+  become: true
+  roles:
+    - k3s.orchestration.k3s_server
+
+- name: Set up k3s agent
+  hosts: agent
+  become: true
+  roles:
+    - k3s.orchestration.k3s_agent
+
+- name: Set up Hyperledger Fabric and Caliper environment
+  hosts: server
+  environment:
+    KUBECONFIG: "{{ ansible_user_dir }}/.kube/config"
+    TEST_NETWORK_CLUSTER_RUNTIME: "k3s"
+  tasks:
+    - name: Install Hyperledger Fabric
+      ansible.builtin.include_role:
+        name: jjohn.hyperledger_fabric.install
+
+    - name: Install Hyperledger Caliper
+      ansible.builtin.include_role:
+        name: jjohn.hyperledger_caliper.install
+
+- name: Run experiment 1
+  ansible.builtin.import_playbook:
+    experiment1.yml

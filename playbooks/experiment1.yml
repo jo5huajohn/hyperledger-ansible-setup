@@ -1,0 +1,160 @@
+---
+- name: Setup Hyperledger Fabric
+  hosts: server
+  environment:
+    KUBECONFIG: "{{ ansible_env.HOME }}/.kube/config"
+    TEST_NETWORK_CLUSTER_RUNTIME: "k3s"
+  vars:
+    fabric_samples_dir: "{{ ansible_user_dir }}/go/src/github.com/{{ ansible_user }}/fabric-samples"
+  tasks:
+    - name: Check network script exists
+      ansible.builtin.stat:
+        path: "{{ fabric_samples_dir }}/test-network-k8s/network"
+      register: _network_script_result
+
+    - name: Shut down existing Hyperledger Fabric network
+      ansible.builtin.command:
+        argv:
+          - ./network
+          - down
+        chdir: "{{ fabric_samples_dir }}/test-network-k8s"
+      when: _network_script_result.stat.exists
+      changed_when: false
+
+    - name: Initialize cluster network
+      ansible.builtin.command:
+        argv:
+          - ./network
+          - cluster
+          - init
+        chdir: "{{ fabric_samples_dir }}/test-network-k8s"
+      changed_when: false
+
+    - name: Launch network
+      ansible.builtin.command:
+        argv:
+          - ./network
+          - up
+        chdir: "{{ fabric_samples_dir }}/test-network-k8s"
+      changed_when: false
+
+    - name: Create a channel
+      ansible.builtin.command:
+        argv:
+          - ./network
+          - channel
+          - create
+        chdir: "{{ fabric_samples_dir }}/test-network-k8s"
+      changed_when: false
+
+    - name: Invoke chaincode
+      ansible.builtin.command:
+        argv:
+          - ./network
+          - chaincode
+          - deploy
+          - asset-transfer-basic
+          - ../asset-transfer-basic/chaincode-java
+        chdir: "{{ fabric_samples_dir }}/test-network-k8s"
+      changed_when: false
+
+    - name: Initialize ledger
+      ansible.builtin.command:
+        argv:
+          - ./network
+          - chaincode
+          - invoke
+          - asset-transfer-basic
+          - '{"Args":["InitLedger"]}'
+        chdir: "{{ fabric_samples_dir }}/test-network-k8s"
+      changed_when: false
+
+    - name: Access blockchain with REST API
+      ansible.builtin.command:
+        argv:
+          - ./network
+          - rest-easy
+        chdir: "{{ fabric_samples_dir }}/test-network-k8s"
+      changed_when: false
+
+- name: Setup Hyperledger Caliper
+  hosts: server
+  environment:
+    KUBECONFIG: "{{ ansible_env.HOME }}/.kube/config"
+    TEST_NETWORK_CLUSTER_RUNTIME: "k3s"
+  vars:
+    caliper_dir: "{{ ansible_user_dir }}/caliper-benchmarks"
+    fabric_samples_dir: "{{ ansible_user_dir }}/go/src/github.com/{{ ansible_user }}/fabric-samples"
+  tasks:
+    - name: Copy the connection profile to Caliper environment
+      ansible.builtin.copy:
+        src: "{{ fabric_samples_dir }}/test-network-k8s/build/fabric-rest-sample-config/HLF_CONNECTION_PROFILE_ORG1"
+        dest: "{{ caliper_dir }}/networks/fabric/connection-profile.json"
+        remote_src: true
+        mode: preserve
+
+    - name: Replace domain in connection-profile.json
+      ansible.builtin.replace:
+        path: "{{ caliper_dir }}/networks/fabric/connection-profile.json"
+        regexp: '\.test-network\.svc\.cluster\.local'
+        replace: '.localho.st'
+
+    - name: Replace port in connection-profile.json
+      ansible.builtin.replace:
+        path: "{{ caliper_dir }}/networks/fabric/connection-profile.json"
+        regexp: '7051'
+        replace: '443'
+
+    - name: Create test-network.yaml
+      ansible.builtin.template:
+        src: "{{ playbook_dir }}/templates/test-network.j2"
+        dest: "{{ caliper_dir }}/networks/fabric/test-network.yaml"
+        force: true
+        mode: '0644'
+
+    - name: Create workload directory
+      ansible.builtin.file:
+        path: "{{ caliper_dir }}/workload"
+        state: directory
+        mode: '0755'
+
+    - name: Copy readAsset.js to workload directory
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/files/readAsset.js"
+        dest: "{{ caliper_dir }}/workload/readAsset.js"
+        mode: '0644'
+
+    - name: Copy myAssetBenchmark.yaml to benchmarks directory
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/files/myAssetBenchmark.yaml"
+        dest: "{{ caliper_dir }}/benchmarks/myAssetBenchmark.yaml"
+        mode: '0644'
+
+    - name: Run Caliper benchmark
+      ansible.builtin.command:
+        argv:
+          - npx
+          - caliper
+          - launch
+          - manager
+          - --caliper-workspace
+          - .
+          - --caliper-benchconfig
+          - benchmarks/myAssetBenchmark.yaml
+          - --caliper-networkconfig
+          - networks/fabric/test-network.yaml
+        chdir: "{{ caliper_dir }}"
+      register: caliper_output
+      changed_when: false
+
+    - name: Print Caliper benchmark output
+      ansible.builtin.debug:
+        var: caliper_output.stdout_lines
+
+    - name: Shut down existing Hyperledger Fabric network
+      ansible.builtin.command:
+        argv:
+          - ./network
+          - down
+        chdir: "{{ fabric_samples_dir }}/test-network-k8s"
+      changed_when: false

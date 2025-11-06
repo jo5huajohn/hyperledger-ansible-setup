@@ -1,0 +1,4 @@
+# SPDX-License-Identifier: MIT-0
+---
+# defaults file for hyperledger-fabric
+install_fabric_dir: "{{ ansible_user_dir }}/go/src/github.com/{{ ansible_user }}"

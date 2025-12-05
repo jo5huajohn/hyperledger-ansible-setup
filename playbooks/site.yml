@@ -22,17 +22,33 @@
       ansible.builtin.meta:
         reset_connection
 
+- name: Create local registry
+  hosts: server
+  tasks:
+    - name: Ensure Docker registry container is running
+      community.docker.docker_container:
+        name: registry
+        image: registry:2.7
+        published_ports:
+          - "5000:5000"
+        restart_policy: unless-stopped
+        state: started
+
 - name: Set up k3s server
   hosts: server
   become: true
-  roles:
-    - k3s.orchestration.k3s_server
+  tasks:
+    - name: Setup k3s
+      ansible.builtin.include_role:
+        name: k3s.orchestration.k3s_server
 
 - name: Set up k3s agent
   hosts: agent
   become: true
-  roles:
-    - k3s.orchestration.k3s_agent
+  tasks:
+    - name: Setup k3s
+      ansible.builtin.include_role:
+        name: k3s.orchestration.k3s_agent
 
 - name: Set up Hyperledger Fabric and Caliper environment
   hosts: server
@@ -48,6 +64,6 @@
       ansible.builtin.include_role:
         name: jjohn.hyperledger_caliper.install
 
-- name: Run experiment 1
+- name: Run experiment 2
   ansible.builtin.import_playbook:
-    experiment1.yml
+    experiment2.yml

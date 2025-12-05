@@ -1,0 +1,4 @@
+# SPDX-License-Identifier: MIT-0
+---
+# defaults file for hyperledger-caliper
+bind_caliper_dir: "{{ ansible_user_dir }}/caliper-benchmarks"

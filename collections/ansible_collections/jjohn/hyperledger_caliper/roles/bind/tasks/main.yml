@@ -1,0 +1,13 @@
+# SPDX-License-Identifier: MIT-0
+---
+# tasks file for bind'
+- name: Bind the Caliper SDK
+  ansible.builtin.command:
+    argv:
+      - npx
+      - caliper
+      - bind
+      - --caliper-bind-sut
+      - fabric:fabric-gateway
+    chdir: "{{ bind_caliper_dir }}"
+  changed_when: false

@@ -21,6 +21,38 @@
       when: _network_script_result.stat.exists
       changed_when: false
 
+    - name: Copy org CA + peer manifests
+      vars:
+        org_files:
+          # CA files
+          - { org: org0, kind: ca }
+          - { org: org1, kind: ca }
+          - { org: org2, kind: ca }
+          # peer1 files
+          - { org: org1, kind: peer1 }
+          - { org: org2, kind: peer1 }
+          # peer2 files
+          - { org: org1, kind: peer2 }
+          - { org: org2, kind: peer2 }
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/files/{{ item.org }}-{{ item.kind }}.yaml"
+        dest: "{{ fabric_samples_dir }}/test-network-k8s/kube/{{ item.org }}/{{ item.org }}-{{ item.kind }}.yaml"
+        mode: preserve
+      loop: "{{ org_files }}"
+
+    - name: Copy org0-orderer files
+      vars:
+        orderers:
+          - { orderer: orderer1 }
+          - { orderer: orderer2 }
+          - { orderer: orderer3 }
+          - { orderer: orderer4 }
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/files/org0-{{ item.orderer }}.yaml"
+        dest: "{{ fabric_samples_dir }}/test-network-k8s/kube/org0/org0-{{ item.orderer }}.yaml"
+        mode: preserve
+      loop: "{{ orderers }}"
+
     - name: Initialize cluster network
       ansible.builtin.command:
         argv:
@@ -57,24 +89,20 @@
     TEST_NETWORK_CLUSTER_RUNTIME: "k3s"
   vars:
     fabric_samples_dir: "{{ ansible_user_dir }}/go/src/github.com/{{ ansible_user }}/fabric-samples"
-    test_network_chaincode_image: "localhost:5000/asset-transfer-basic"
+    test_network_chaincode_image: localhost:5000/asset-transfer-basic
   tasks:
     - name: Copy file to scripts
       ansible.builtin.copy:
         src: "{{ playbook_dir }}/files/chaincode.sh"
         dest: "{{ fabric_samples_dir }}/test-network-k8s/scripts/chaincode.sh"
-        mode: '0644'
+        mode: preserve
 
-    - name: Build external chaincode docker image
-      ansible.builtin.command:
-        argv:
-          - docker
-          - build
-          - -t
-          - asset-transfer-basic
-          - ../asset-transfer-basic/chaincode-external
-        chdir: "{{ fabric_samples_dir }}/test-network-k8s"
-      changed_when: false
+    - name: Build external chaincode image via docker_image
+      community.docker.docker_image:
+        name: asset-transfer-basic
+        build:
+          path: "{{ fabric_samples_dir }}/asset-transfer-basic/chaincode-external"
+        source: build
 
     - name: Tag asset-transer-basic image
       community.docker.docker_image_tag:
@@ -114,43 +142,31 @@
     caliper_dir: "{{ ansible_user_dir }}/caliper-benchmarks"
     fabric_samples_dir: "{{ ansible_user_dir }}/go/src/github.com/{{ ansible_user }}/fabric-samples"
   tasks:
-    - name: Copy connection profile 1 to Caliper environment
+    - name: Copy connection profiles to Caliper environment
+      vars:
+        profiles:
+          - { org: ORG1, dest: connection-profile1.json }
+          - { org: ORG2, dest: connection-profile2.json }
       ansible.builtin.copy:
-        src: "{{ fabric_samples_dir }}/test-network-k8s/build/fabric-rest-sample-config/HLF_CONNECTION_PROFILE_ORG1"
-        dest: "{{ caliper_dir }}/networks/fabric/connection-profile1.json"
+        src: "{{ fabric_samples_dir }}/test-network-k8s/build/fabric-rest-sample-config/HLF_CONNECTION_PROFILE_{{ item.org }}"
+        dest: "{{ caliper_dir }}/networks/fabric/{{ item.dest }}"
         remote_src: true
         mode: preserve
+      loop: "{{ profiles }}"
 
-    - name: Replace domain in connection-profile1.json
+    - name: Patch connection profiles (domain and port)
+      vars:
+        profile_files:
+          - connection-profile1.json
+          - connection-profile2.json
+        patterns:
+          - { regexp: '\\.test-network\\.svc\\.cluster\\.local', replace: '.localho.st' }
+          - { regexp: '7051', replace: '443' }
       ansible.builtin.replace:
-        path: "{{ caliper_dir }}/networks/fabric/connection-profile1.json"
-        regexp: '\.test-network\.svc\.cluster\.local'
-        replace: '.localho.st'
-
-    - name: Replace port in connection-profile1.json
-      ansible.builtin.replace:
-        path: "{{ caliper_dir }}/networks/fabric/connection-profile1.json"
-        regexp: '7051'
-        replace: '443'
-
-    - name: Copy the connection profile 2 to Caliper environment
-      ansible.builtin.copy:
-        src: "{{ fabric_samples_dir }}/test-network-k8s/build/fabric-rest-sample-config/HLF_CONNECTION_PROFILE_ORG2"
-        dest: "{{ caliper_dir }}/networks/fabric/connection-profile2.json"
-        remote_src: true
-        mode: preserve
-
-    - name: Replace domain in connection-profile2.json
-      ansible.builtin.replace:
-        path: "{{ caliper_dir }}/networks/fabric/connection-profile2.json"
-        regexp: '\.test-network\.svc\.cluster\.local'
-        replace: '.localho.st'
-
-    - name: Replace port in connection-profile2.json
-      ansible.builtin.replace:
-        path: "{{ caliper_dir }}/networks/fabric/connection-profile2.json"
-        regexp: '7051'
-        replace: '443'
+        path: "{{ caliper_dir }}/networks/fabric/{{ item.0 }}"
+        regexp: "{{ item.1.regexp }}"
+        replace: "{{ item.1.replace }}"
+      loop: "{{ profile_files | product(patterns) | list }}"
 
     - name: Create test-network.yaml
       ansible.builtin.template:
@@ -169,13 +185,13 @@
       ansible.builtin.copy:
         src: "{{ playbook_dir }}/files/readAsset.js"
         dest: "{{ caliper_dir }}/workload/readAsset.js"
-        mode: '0644'
+        mode: preserve
 
     - name: Copy myAssetBenchmark.yaml to benchmarks directory
       ansible.builtin.copy:
         src: "{{ playbook_dir }}/files/myAssetBenchmark.yaml"
         dest: "{{ caliper_dir }}/benchmarks/myAssetBenchmark.yaml"
-        mode: '0644'
+        mode: preserve
 
     - name: Run Caliper benchmark
       ansible.builtin.command:

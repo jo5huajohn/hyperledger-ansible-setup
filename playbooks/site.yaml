@@ -64,6 +64,10 @@
       ansible.builtin.include_role:
         name: jjohn.hyperledger_caliper.install
 
-- name: Run experiment 2
+    - name: Bind Hyperledger Caliper
+      ansible.builtin.include_role:
+        name: jjohn.hyperledger_caliper.bind
+
+- name: Run experiment
   ansible.builtin.import_playbook:
-    experiment2.yml
+    experiment.yaml

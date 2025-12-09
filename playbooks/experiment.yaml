@@ -187,8 +187,8 @@
         mode: preserve
 
     - name: Copy myAssetBenchmark.yaml to benchmarks directory
-      ansible.builtin.copy:
-        src: "{{ playbook_dir }}/files/myAssetBenchmark.yaml"
+      ansible.builtin.template:
+        src: "{{ playbook_dir }}/files/myAssetBenchmark.yaml.j2"
         dest: "{{ caliper_dir }}/benchmarks/myAssetBenchmark.yaml"
         mode: preserve
 

@@ -35,7 +35,7 @@
           - { org: org1, kind: peer2 }
           - { org: org2, kind: peer2 }
       ansible.builtin.copy:
-        src: "{{ playbook_dir }}/files/{{ item.org }}-{{ item.kind }}.yaml"
+        src: "{{ playbook_dir }}/files/{{ item.org }}/{{ item.org }}-{{ item.kind }}.yaml"
         dest: "{{ fabric_samples_dir }}/test-network-k8s/kube/{{ item.org }}/{{ item.org }}-{{ item.kind }}.yaml"
         mode: preserve
       loop: "{{ org_files }}"
@@ -48,7 +48,7 @@
           - { orderer: orderer3 }
           - { orderer: orderer4 }
       ansible.builtin.copy:
-        src: "{{ playbook_dir }}/files/org0-{{ item.orderer }}.yaml"
+        src: "{{ playbook_dir }}/files/org0/org0-{{ item.orderer }}.yaml"
         dest: "{{ fabric_samples_dir }}/test-network-k8s/kube/org0/org0-{{ item.orderer }}.yaml"
         mode: preserve
       loop: "{{ orderers }}"
@@ -160,8 +160,7 @@
           - connection-profile1.json
           - connection-profile2.json
         patterns:
-          - { regexp: '\\.test-network\\.svc\\.cluster\\.local', replace: '.localho.st' }
-          - { regexp: '7051', replace: '443' }
+          - { regexp: '\.test-network\.svc\.cluster\.local', replace: '.localho.st' }
       ansible.builtin.replace:
         path: "{{ caliper_dir }}/networks/fabric/{{ item.0 }}"
         regexp: "{{ item.1.regexp }}"

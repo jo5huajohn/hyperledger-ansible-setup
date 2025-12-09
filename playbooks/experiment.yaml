@@ -192,6 +192,13 @@
         dest: "{{ caliper_dir }}/benchmarks/myAssetBenchmark.yaml"
         mode: preserve
 
+    - name: Port-forward org1-peer1 service to localhost:7051
+      ansible.builtin.command:
+        cmd: kubectl -n test-network port-forward svc/org1-peer1 7051:7051
+      async: 300
+      poll: 0
+      changed_when: false
+
     - name: Run Caliper benchmark
       ansible.builtin.command:
         argv:

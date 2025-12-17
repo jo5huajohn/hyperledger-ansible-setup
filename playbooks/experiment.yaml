@@ -28,6 +28,13 @@
 - name: Setup Hyperledger Fabric
   hosts: server
   environment:
+    APPROVE_EXTRA_ARGS: "--signature-policy AND('Org1MSP.peer','Org2MSP.peer')"
+    COMMIT_EXTRA_ARGS: "--signature-policy AND('Org1MSP.peer','Org2MSP.peer')"
+    INVOKE_EXTRA_ARGS: "--peerAddresses org1-peer1.localho.st:443 \
+      --tlsRootCertFiles $PWD/build/channel-msp/peerOrganizations/org1/msp/tlscacerts/tlsca-signcert.pem \
+      --peerAddresses org2-peer1.localho.st:443 \
+      --tlsRootCertFiles $PWD/build/channel-msp/peerOrganizations/org2/msp/tlscacerts/tlsca-signcert.pem"
+    TEST_NETWORK_CHAINCODE_SEQUENCE: "1"
     KUBECONFIG: "{{ kubeconfig_dir }}"
     TEST_NETWORK_CLUSTER_RUNTIME: "{{ cluster_runtime }}"
   tasks:
@@ -45,23 +52,34 @@
       when: _network_script_result.stat.exists
       changed_when: false
 
-    - name: Copy org CA + peer manifests
+    - name: Copy org CA manifests
       vars:
         org_files:
           # CA files
           - { org: org0, kind: ca }
           - { org: org1, kind: ca }
           - { org: org2, kind: ca }
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/files/{{ item.org }}/{{ item.org }}-{{ item.kind }}.yaml"
+        dest: "{{ fabric_k8s_dir }}/kube/{{ item.org }}/{{ item.org }}-{{ item.kind }}.yaml"
+        mode: "0644"
+        force: true
+      loop: "{{ org_files }}"
+
+    - name: Template peer manifests
+      vars:
+        org_files:
           # peer1 files
           - { org: org1, kind: peer1 }
           - { org: org2, kind: peer1 }
           # peer2 files
           - { org: org1, kind: peer2 }
           - { org: org2, kind: peer2 }
-      ansible.builtin.copy:
-        src: "{{ playbook_dir }}/files/{{ item.org }}/{{ item.org }}-{{ item.kind }}.yaml"
+      ansible.builtin.template:
+        src: "{{ playbook_dir }}/templates/{{ item.org }}/{{ item.org }}-{{ item.kind }}.yaml.j2"
         dest: "{{ fabric_k8s_dir }}/kube/{{ item.org }}/{{ item.org }}-{{ item.kind }}.yaml"
-        mode: preserve
+        mode: "0644"
+        force: true
       loop: "{{ org_files }}"
 
     - name: Copy org0-orderer files
@@ -76,6 +94,12 @@
         dest: "{{ fabric_k8s_dir }}/kube/org0/org0-{{ item.orderer }}.yaml"
         mode: preserve
       loop: "{{ orderers }}"
+
+    - name: Copy file to scripts
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/files/chaincode.sh"
+        dest: "{{ fabric_k8s_dir }}/scripts/chaincode.sh"
+        mode: preserve
 
     - name: Initialize cluster network
       ansible.builtin.command:
@@ -102,21 +126,6 @@
           - create
         chdir: "{{ fabric_k8s_dir }}"
       changed_when: false
-
-- name: Modify server
-  hosts: server
-  environment:
-    APPROVE_EXTRA_ARGS: "--signature-policy AND('Org1MSP.peer','Org2MSP.peer')"
-    COMMIT_EXTRA_ARGS: "--signature-policy AND('Org1MSP.peer','Org2MSP.peer')"
-    TEST_NETWORK_CHAINCODE_SEQUENCE: "1"
-    KUBECONFIG: "{{ kubeconfig_dir }}"
-    TEST_NETWORK_CLUSTER_RUNTIME: "{{ cluster_runtime }}"
-  tasks:
-    - name: Copy file to scripts
-      ansible.builtin.copy:
-        src: "{{ playbook_dir }}/files/chaincode.sh"
-        dest: "{{ fabric_k8s_dir }}/scripts/chaincode.sh"
-        mode: preserve
 
     - name: Initialize ledger
       ansible.builtin.command:

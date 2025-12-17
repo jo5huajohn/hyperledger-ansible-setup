@@ -10,10 +10,9 @@ test:
         rateControl:
           type: fixed-rate
           opts:
-            # tps: {{ caliper_benchmark_tps }}
             transactionLoad: {{ caliper_benchmark_rounds_rateControl_opts_transactionLoad }}
         workload:
           module: workload/readAsset.js
           arguments:
-            assets: {{ caliper_benchmark_rounds_workload_arguments_assets    }}
+            assets: {{ caliper_benchmark_rounds_workload_arguments_assets }}
             contractId: asset-transfer-basic

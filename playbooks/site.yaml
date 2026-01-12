@@ -58,8 +58,8 @@
 - name: Set up Hyperledger Fabric and Caliper environment
   hosts: server
   environment:
-    KUBECONFIG: "{{ kubeconfig_dir }}"
-    TEST_NETWORK_CLUSTER_RUNTIME: "{{ cluster_runtime }}"
+    KUBECONFIG: "{{ kubeconfig_path }}"
+    TEST_NETWORK_CLUSTER_RUNTIME: "{{ test_network_cluster_runtime }}"
   tasks:
     - name: Install Hyperledger Fabric
       ansible.builtin.include_role:

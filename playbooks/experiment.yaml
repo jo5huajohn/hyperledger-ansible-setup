@@ -2,8 +2,8 @@
 - name: Build docker image and tag it
   hosts: server
   environment:
-    KUBECONFIG: "{{ kubeconfig_dir }}"
-    TEST_NETWORK_CLUSTER_RUNTIME: "{{ cluster_runtime }}"
+    KUBECONFIG: "{{ kubeconfig_path }}"
+    TEST_NETWORK_CLUSTER_RUNTIME: "{{ test_network_cluster_runtime }}"
   vars:
     test_network_chaincode_image: localhost:5000/asset-transfer-basic
   tasks:
@@ -35,8 +35,8 @@
       --peerAddresses org2-peer1.localho.st:443 \
       --tlsRootCertFiles $PWD/build/channel-msp/peerOrganizations/org2/msp/tlscacerts/tlsca-signcert.pem"
     TEST_NETWORK_CHAINCODE_SEQUENCE: "1"
-    KUBECONFIG: "{{ kubeconfig_dir }}"
-    TEST_NETWORK_CLUSTER_RUNTIME: "{{ cluster_runtime }}"
+    KUBECONFIG: "{{ kubeconfig_path }}"
+    TEST_NETWORK_CLUSTER_RUNTIME: "{{ test_network_cluster_runtime }}"
   tasks:
     - name: Check network script exists
       ansible.builtin.stat:
@@ -149,8 +149,8 @@
 - name: Setup Hyperledger Caliper
   hosts: server
   environment:
-    KUBECONFIG: "{{ kubeconfig_dir }}"
-    TEST_NETWORK_CLUSTER_RUNTIME: "{{ cluster_runtime }}"
+    KUBECONFIG: "{{ kubeconfig_path }}"
+    TEST_NETWORK_CLUSTER_RUNTIME: "{{ test_network_cluster_runtime }}"
   vars:
     caliper_dir: "{{ ansible_user_dir }}/caliper-benchmarks"
   tasks:

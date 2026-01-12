@@ -1,18 +1,25 @@
 test:
-    name: basic-contract-benchmark
-    description: test benchmark
-    workers:
-      number: {{ caliper_benchmark_workers_number }}
-    rounds:
-      - label: readAsset
-        description: Read asset benchmark
-        txDuration: {{ caliper_benchmark_rounds_txDuration }}
-        rateControl:
-          type: fixed-rate
-          opts:
-            transactionLoad: {{ caliper_benchmark_rounds_rateControl_opts_transactionLoad }}
-        workload:
-          module: workload/readAsset.js
-          arguments:
-            assets: {{ caliper_benchmark_rounds_workload_arguments_assets }}
-            contractId: asset-transfer-basic
+  name: basic-contract-benchmark
+  description: test benchmark
+  workers:
+    number: {{ caliper_benchmark_workers_number }}
+  rounds:
+    - label: readAsset
+      description: Read asset benchmark
+      txDuration: {{ caliper_benchmark_rounds_txDuration }}
+      rateControl:
+        type: fixed-rate
+        opts:
+          transactionLoad: {{ caliper_benchmark_rounds_rateControl_opts_transactionLoad }}
+      workload:
+        module: workload/readAsset.js
+        arguments:
+          assets: {{ caliper_benchmark_rounds_workload_arguments_assets }}
+          contractId: asset-transfer-basic
+monitors:
+  resource:
+    - module: docker
+      options:
+        interval: 5
+        containers:
+          - all

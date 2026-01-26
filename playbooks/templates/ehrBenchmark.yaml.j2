@@ -1,0 +1,24 @@
+test:
+  name: ehr-contract-benchmark
+  description: Electronic Health Record chaincode benchmark
+  workers:
+    number: {{ caliper_benchmark_workers_number }}
+  rounds:
+    - label: readEHR
+      description: EHR read operations benchmark (viewPartialProfile, viewEHR, getAllEHRforActor)
+      txDuration: {{ caliper_benchmark_rounds_txDuration }}
+      rateControl:
+        type: fixed-rate
+        opts:
+          transactionLoad: {{ caliper_benchmark_rounds_rateControl_opts_transactionLoad }}
+      workload:
+        module: workload/ehrWorkload.js
+        arguments:
+          contractId: ehr
+monitors:
+  resource:
+    - module: docker
+      options:
+        interval: 5
+        containers:
+          - all

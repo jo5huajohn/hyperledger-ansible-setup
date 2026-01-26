@@ -1,0 +1,52 @@
+{
+    "name": "ehr",
+    "version": "1.0.0",
+    "description": "Electronic Health Record Smart Contract",
+    "main": "index.js",
+    "engines": {
+        "node": ">=20",
+        "npm": ">=5"
+    },
+    "scripts": {
+        "lint": "eslint .",
+        "pretest": "npm run lint",
+        "test": "nyc mocha --recursive",
+        "start": "fabric-chaincode-node server --chaincode-address=$CHAINCODE_SERVER_ADDRESS --chaincode-id=$CHAINCODE_ID"
+    },
+    "engineStrict": true,
+    "author": "Luca A. Mueller",
+    "license": "Apache-2.0",
+    "dependencies": {
+        "fabric-contract-api": "~2.5",
+        "fabric-shim": "~2.5",
+        "js-sha512": "0.9.0",
+        "read-yaml": "1.1.0"
+    },
+    "devDependencies": {
+        "chai": "^4.4.1",
+        "chai-as-promised": "^8.0.2",
+        "eslint": "^8.57.0",
+        "mocha": "^10.4.0",
+        "nyc": "^15.1.0",
+        "sinon": "^18.0.0",
+        "sinon-chai": "^3.7.0",
+        "winston": "^3.2.1"
+    },
+    "nyc": {
+        "exclude": [
+            ".eslintrc.js",
+            "coverage/**",
+            "test/**"
+        ],
+        "reporter": [
+            "text-summary",
+            "html"
+        ],
+        "all": true,
+        "check-coverage": true,
+        "statements": 100,
+        "branches": 100,
+        "functions": 100,
+        "lines": 100
+    }
+}

@@ -15,6 +15,7 @@ channels:
     - id: simple
     - id: smallbank
     - id: asset-transfer-basic
+    - id: ehr
 
 organizations:
   - mspid: Org1MSP
@@ -24,10 +25,8 @@ organizations:
       - name: 'User1'
         clientPrivateKey:
           path: '{{ fabric_k8s_dir }}/build/enrollments/org1/users/org1admin/msp/keystore/key.pem'
-
         clientSignedCert:
           path: '{{ fabric_k8s_dir }}/build/enrollments/org1/users/org1admin/msp/signcerts/cert.pem'
-
     connectionProfile:
       path: 'networks/fabric/connection-profile1.json'
       discover: true
@@ -39,7 +38,6 @@ organizations:
       - name: 'User1'
         clientPrivateKey:
           path: '{{ fabric_k8s_dir }}/build/enrollments/org2/users/org2admin/msp/keystore/key.pem'
-
         clientSignedCert:
           path: '{{ fabric_k8s_dir }}/build/enrollments/org2/users/org2admin/msp/signcerts/cert.pem'
     connectionProfile:

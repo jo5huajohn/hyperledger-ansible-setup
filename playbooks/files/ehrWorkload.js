@@ -41,25 +41,6 @@ class EHRWorkload extends WorkloadModuleBase {
         console.log(`Worker ${this.workerIndex}: Loaded ${this.ssnList.length} SSNs, ${this.ehrIdList.length} EHR IDs, ${this.actorIds.length} actors`);
     }
 
-    async submitTransaction() {
-        // 70% viewPartialProfile - healthcare providers checking patient summaries
-        // 20% viewEHR - viewing specific health records
-        // 10% getAllEHRforActor - actors retrieving all accessible records
-
-        const rand = Math.random();
-
-        if (rand < 0.70) {
-            // viewPartialProfile - most common operation
-            await this._viewPartialProfile();
-        } else if (rand < 0.90) {
-            // viewEHR - viewing specific health record
-            await this._viewEHR();
-        } else {
-            // getAllEHRforActor - retrieving all records for an actor
-            await this._getAllEHRforActor();
-        }
-    }
-
     async _viewPartialProfile() {
         const randomSsn = this.ssnList[Math.floor(Math.random() * this.ssnList.length)];
         const randomActor = this.actorIds[Math.floor(Math.random() * this.actorIds.length)];
@@ -102,6 +83,25 @@ class EHRWorkload extends WorkloadModuleBase {
         };
 
         await this.sutAdapter.sendRequests(request);
+    }
+
+    async submitTransaction() {
+        // 70% viewPartialProfile - healthcare providers checking patient summaries
+        // 20% viewEHR - viewing specific health records
+        // 10% getAllEHRforActor - actors retrieving all accessible records
+
+        const rand = Math.random();
+
+        if (rand < 0.70) {
+            // viewPartialProfile - most common operation
+            await this._viewPartialProfile();
+        } else if (rand < 0.90) {
+            // viewEHR - viewing specific health record
+            await this._viewEHR();
+        } else {
+            // getAllEHRforActor - retrieving all records for an actor
+            await this._getAllEHRforActor();
+        }
     }
 
     async cleanupWorkloadModule() {

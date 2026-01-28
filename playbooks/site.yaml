@@ -171,9 +171,9 @@
     APPROVE_EXTRA_ARGS: "--signature-policy AND('Org1MSP.peer','Org2MSP.peer')"
     COMMIT_EXTRA_ARGS: "--signature-policy AND('Org1MSP.peer','Org2MSP.peer')"
     INVOKE_EXTRA_ARGS: "--peerAddresses org1-peer1.localho.st:443 \
-      --tlsRootCertFiles $PWD/build/channel-msp/peerOrganizations/org1/msp/tlscacerts/tlsca-signcert.pem \
+      --tlsRootCertFiles {{ fabric_k8s_dir }}/build/channel-msp/peerOrganizations/org1/msp/tlscacerts/tlsca-signcert.pem \
       --peerAddresses org2-peer1.localho.st:443 \
-      --tlsRootCertFiles $PWD/build/channel-msp/peerOrganizations/org2/msp/tlscacerts/tlsca-signcert.pem"
+      --tlsRootCertFiles {{ fabric_k8s_dir }}/build/channel-msp/peerOrganizations/org2/msp/tlscacerts/tlsca-signcert.pem"
     TEST_NETWORK_CHAINCODE_SEQUENCE: "1"
     KUBECONFIG: "{{ kubeconfig_path }}"
     TEST_NETWORK_CLUSTER_RUNTIME: "{{ test_network_cluster_runtime }}"

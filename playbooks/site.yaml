@@ -10,6 +10,7 @@
       ansible.builtin.apt:
         name: socat
         state: present
+  tags: setup
 
 - name: Create docker group and add ansible_user
   hosts: k3s_cluster
@@ -26,6 +27,7 @@
     - name: Reset ssh connection to allow user changes to affect ansible user
       ansible.builtin.meta:
         reset_connection
+  tags: setup
 
 - name: Create local registry
   hosts: server
@@ -38,6 +40,7 @@
           - "5000:5000"
         restart_policy: unless-stopped
         state: started
+  tags: setup
 
 - name: Set up k3s server
   hosts: server
@@ -46,6 +49,7 @@
     - name: Setup k3s
       ansible.builtin.include_role:
         name: k3s.orchestration.k3s_server
+  tags: setup
 
 - name: Set up k3s agent
   hosts: agent
@@ -54,6 +58,7 @@
     - name: Setup k3s
       ansible.builtin.include_role:
         name: k3s.orchestration.k3s_agent
+  tags: setup
 
 - name: Set up Hyperledger Fabric and Caliper environment
   hosts: server
@@ -72,7 +77,281 @@
     - name: Bind Hyperledger Caliper
       ansible.builtin.include_role:
         name: jjohn.hyperledger_caliper.bind
+  tags: setup
 
-- name: Run experiment
-  ansible.builtin.import_playbook:
-    experiment.yaml
+- name: Build docker image and tag it
+  hosts: server
+  environment:
+    KUBECONFIG: "{{ kubeconfig_path }}"
+    TEST_NETWORK_CLUSTER_RUNTIME: "{{ test_network_cluster_runtime }}"
+  vars:
+    test_network_chaincode_image: localhost:5000/electronic_health_record
+  tasks:
+    - name: Copy contracts to samples directory
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/files/contract/electronic_health_record/"
+        dest: "{{ fabric_samples_dir }}/electronic_health_record/chaincode/"
+        mode: "0770"
+
+    # - name: Build external chaincode image via docker_image
+    #     name: asset-transfer-basic
+    #   community.docker.docker_image:
+    #     build:
+    #       path: "{{ ansible_user_dir }}/go/src/github.com/{{ ansible_user }}/fabric-samples/electronic_health_record/electronic_health_record"
+    #     source: build
+
+    # - name: Tag asset-transer-basic image
+    #   community.docker.docker_image_tag:
+    #     name: asset-transfer-basic
+    #     repository:
+    #       - "{{ test_network_chaincode_image }}"
+    #     tag: latest
+
+    # - name: Push asset-transfer-basic image
+    #   community.docker.docker_image_push:
+    #     name: "{{ test_network_chaincode_image }}"
+  tags: setup
+
+- name: Copy files to Hyperledger Fabric samples directory.
+  hosts: server
+  tasks:
+    - name: Copy org CA manifests.
+      vars:
+        org_files:
+          # CA files
+          - { org: org0, kind: ca }
+          - { org: org1, kind: ca }
+          - { org: org2, kind: ca }
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/files/{{ item.org }}/{{ item.org }}-{{ item.kind }}.yaml"
+        dest: "{{ fabric_k8s_dir }}/kube/{{ item.org }}/{{ item.org }}-{{ item.kind }}.yaml"
+        mode: "0644"
+        force: true
+      loop: "{{ org_files }}"
+
+    - name: Template peer manifests.
+      vars:
+        org_files:
+          # peer1 files
+          - { org: org1, kind: peer1 }
+          - { org: org2, kind: peer1 }
+          # peer2 files
+          - { org: org1, kind: peer2 }
+          - { org: org2, kind: peer2 }
+      ansible.builtin.template:
+        src: "{{ playbook_dir }}/templates/{{ item.org }}/{{ item.org }}-{{ item.kind }}.yaml.j2"
+        dest: "{{ fabric_k8s_dir }}/kube/{{ item.org }}/{{ item.org }}-{{ item.kind }}.yaml"
+        mode: "0644"
+        force: true
+      loop: "{{ org_files }}"
+
+    - name: Copy organization orderer files.
+      vars:
+        orderers:
+          - { orderer: orderer1 }
+          - { orderer: orderer2 }
+          - { orderer: orderer3 }
+          - { orderer: orderer4 }
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/files/org0/org0-{{ item.orderer }}.yaml"
+        dest: "{{ fabric_k8s_dir }}/kube/org0/org0-{{ item.orderer }}.yaml"
+        mode: preserve
+      loop: "{{ orderers }}"
+
+    - name: Copy file to scripts.
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/files/chaincode.sh"
+        dest: "{{ fabric_k8s_dir }}/scripts/chaincode.sh"
+        mode: preserve
+  tags: setup
+
+- name: Setup Hyperledger Fabric.
+  hosts: server
+  environment:
+    APPROVE_EXTRA_ARGS: "--signature-policy AND('Org1MSP.peer','Org2MSP.peer')"
+    COMMIT_EXTRA_ARGS: "--signature-policy AND('Org1MSP.peer','Org2MSP.peer')"
+    INVOKE_EXTRA_ARGS: "--peerAddresses org1-peer1.localho.st:443 \
+      --tlsRootCertFiles $PWD/build/channel-msp/peerOrganizations/org1/msp/tlscacerts/tlsca-signcert.pem \
+      --peerAddresses org2-peer1.localho.st:443 \
+      --tlsRootCertFiles $PWD/build/channel-msp/peerOrganizations/org2/msp/tlscacerts/tlsca-signcert.pem"
+    TEST_NETWORK_CHAINCODE_SEQUENCE: "1"
+    KUBECONFIG: "{{ kubeconfig_path }}"
+    TEST_NETWORK_CLUSTER_RUNTIME: "{{ test_network_cluster_runtime }}"
+  tasks:
+    - name: Check network script exists
+      ansible.builtin.stat:
+        path: "{{ fabric_k8s_dir }}/network"
+      register: _network_script_result
+
+    - name: Shut down existing Hyperledger Fabric network
+      ansible.builtin.command:
+        argv:
+          - ./network
+          - down
+        chdir: "{{ fabric_k8s_dir }}"
+      when: _network_script_result.stat.exists
+      changed_when: false
+
+    - name: Initialize cluster network
+      ansible.builtin.command:
+        argv:
+          - ./network
+          - cluster
+          - init
+        chdir: "{{ fabric_k8s_dir }}"
+      changed_when: false
+
+    - name: Launch network
+      ansible.builtin.command:
+        argv:
+          - ./network
+          - up
+        chdir: "{{ fabric_k8s_dir }}"
+      changed_when: false
+
+    - name: Create a channel
+      ansible.builtin.command:
+        argv:
+          - ./network
+          - channel
+          - create
+        chdir: "{{ fabric_k8s_dir }}"
+      changed_when: false
+
+    - name: Deploy chaincode
+      ansible.builtin.command:
+        argv:
+          - ./network
+          - chaincode
+          - deploy
+          - ehr
+          - ../electronic_health_record/chaincode/
+        chdir: "{{ fabric_k8s_dir }}"
+      changed_when: false
+
+    - name: Initialize ledger with seed data
+      ansible.builtin.command:
+        argv:
+          - ./network
+          - chaincode
+          - invoke
+          - ehr
+          - '{"Args":["initLedger"]}'
+        chdir: "{{ fabric_k8s_dir }}"
+      changed_when: false
+
+    - name: Access blockchain with REST API
+      ansible.builtin.command:
+        argv:
+          - ./network
+          - rest-easy
+        chdir: "{{ fabric_k8s_dir }}"
+      changed_when: false
+  tags: fabric_setup
+
+- name: Setup Hyperledger Caliper
+  hosts: server
+  environment:
+    KUBECONFIG: "{{ kubeconfig_path }}"
+    TEST_NETWORK_CLUSTER_RUNTIME: "{{ test_network_cluster_runtime }}"
+  vars:
+    caliper_dir: "{{ ansible_user_dir }}/caliper-benchmarks"
+  tasks:
+    - name: Copy connection profiles to Caliper environment
+      vars:
+        profiles:
+          - { org: ORG1, dest: connection-profile1.json }
+          - { org: ORG2, dest: connection-profile2.json }
+      ansible.builtin.copy:
+        src: "{{ fabric_k8s_dir }}/build/fabric-rest-sample-config/HLF_CONNECTION_PROFILE_{{ item.org }}"
+        dest: "{{ caliper_dir }}/networks/fabric/{{ item.dest }}"
+        remote_src: true
+        mode: preserve
+      loop: "{{ profiles }}"
+
+    - name: Patch connection profiles (domain and port)
+      vars:
+        profile_files:
+          - connection-profile1.json
+          - connection-profile2.json
+        patterns:
+          - { regexp: '\.test-network\.svc\.cluster\.local', replace: '.localho.st' }
+      ansible.builtin.replace:
+        path: "{{ caliper_dir }}/networks/fabric/{{ item.0 }}"
+        regexp: "{{ item.1.regexp }}"
+        replace: "{{ item.1.replace }}"
+      loop: "{{ profile_files | product(patterns) | list }}"
+
+    - name: Create test-network.yaml
+      ansible.builtin.template:
+        src: "{{ playbook_dir }}/templates/test-network.j2"
+        dest: "{{ caliper_dir }}/networks/fabric/test-network.yaml"
+        force: true
+        mode: '0644'
+
+    - name: Create workload directory
+      ansible.builtin.file:
+        path: "{{ caliper_dir }}/workload"
+        state: directory
+        mode: '0755'
+
+#     - name: Copy readAsset.js to workload directory
+#       ansible.builtin.copy:
+#         src: "{{ playbook_dir }}/files/readAsset.js"
+#         dest: "{{ caliper_dir }}/workload/readAsset.js"
+#         mode: preserve
+
+    - name: Copy ehrWorkload.js to workload directory
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/files/ehrWorkload.js"
+        dest: "{{ caliper_dir }}/workload/ehrWorkload.js"
+        mode: preserve
+
+#     - name: Copy myAssetBenchmark.yaml to benchmarks directory
+#       ansible.builtin.template:
+#         src: "{{ playbook_dir }}/templates/myAssetBenchmark.yaml.j2"
+#         dest: "{{ caliper_dir }}/benchmarks/myAssetBenchmark.yaml"
+#         mode: preserve
+
+    - name: Copy ehrBenchmark.yaml to benchmarks directory
+      ansible.builtin.template:
+        src: "{{ playbook_dir }}/templates/ehrBenchmark.yaml.j2"
+        dest: "{{ caliper_dir }}/benchmarks/ehrBenchmark.yaml"
+        mode: preserve
+
+    - name: Port-forward org1-peer1 service to localhost:7051
+      ansible.builtin.command:
+        cmd: kubectl -n test-network port-forward svc/org1-peer1 7051:7051
+      async: 300
+      poll: 0
+      changed_when: false
+
+    - name: Run Caliper benchmark
+      ansible.builtin.command:
+        argv:
+          - npx
+          - caliper
+          - launch
+          - manager
+          - --caliper-workspace
+          - .
+          - --caliper-benchconfig
+          - benchmarks/ehrBenchmark.yaml
+          - --caliper-networkconfig
+          - networks/fabric/test-network.yaml
+        chdir: "{{ caliper_dir }}"
+      register: caliper_output
+      changed_when: false
+
+    - name: Print Caliper benchmark output
+      ansible.builtin.debug:
+        var: caliper_output.stdout_lines
+
+    - name: Shut down existing Hyperledger Fabric network
+      ansible.builtin.command:
+        argv:
+          - ./network
+          - down
+        chdir: "{{ fabric_k8s_dir }}"
+      changed_when: false
+  tags: benchmark

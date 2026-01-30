@@ -6,6 +6,10 @@ This repository contains everything required to replicate experiments done so fa
 
 * Ansible
 
+```bash
+ansible-galaxy install -r requirements.yaml
+```
+
 > [!NOTE]
 > It is recommended to use VSCode with the Dev Containers extension, as the devcontainer file will install all requirements required for this project.
 

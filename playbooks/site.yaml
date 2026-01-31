@@ -93,23 +93,23 @@
         dest: "{{ fabric_samples_dir }}/electronic_health_record/chaincode/"
         mode: "0770"
 
-    # - name: Build external chaincode image via docker_image
-    #     name: asset-transfer-basic
-    #   community.docker.docker_image:
-    #     build:
-    #       path: "{{ ansible_user_dir }}/go/src/github.com/{{ ansible_user }}/fabric-samples/electronic_health_record/electronic_health_record"
-    #     source: build
+    - name: Build external chaincode image via docker_image
+      community.docker.docker_image:
+        name: electronic_health_record
+        build:
+          path: "{{ fabric_samples_dir }}/electronic_health_record/chaincode/"
+        source: build
 
-    # - name: Tag asset-transer-basic image
-    #   community.docker.docker_image_tag:
-    #     name: asset-transfer-basic
-    #     repository:
-    #       - "{{ test_network_chaincode_image }}"
-    #     tag: latest
+    - name: Tag asset-transer-basic image
+      community.docker.docker_image_tag:
+        name: electronic_health_record
+        repository:
+          - "{{ test_network_chaincode_image }}"
+        tag: latest
 
-    # - name: Push asset-transfer-basic image
-    #   community.docker.docker_image_push:
-    #     name: "{{ test_network_chaincode_image }}"
+    - name: Push asset-transfer-basic image
+      community.docker.docker_image_push:
+        name: "{{ test_network_chaincode_image }}"
   tags: setup
 
 - name: Copy files to Hyperledger Fabric samples directory.

@@ -10,7 +10,7 @@
       ansible.builtin.apt:
         name: socat
         state: present
-  tags: setup
+  tags: provision
 
 - name: Create docker group and add ansible_user
   hosts: k3s_cluster
@@ -27,7 +27,7 @@
     - name: Reset ssh connection to allow user changes to affect ansible user
       ansible.builtin.meta:
         reset_connection
-  tags: setup
+  tags: provision
 
 - name: Create local registry
   hosts: server
@@ -40,7 +40,7 @@
           - "5000:5000"
         restart_policy: unless-stopped
         state: started
-  tags: setup
+  tags: provision
 
 - name: Set up k3s server
   hosts: server
@@ -49,7 +49,7 @@
     - name: Setup k3s
       ansible.builtin.include_role:
         name: k3s.orchestration.k3s_server
-  tags: setup
+  tags: provision
 
 - name: Set up k3s agent
   hosts: agent
@@ -58,63 +58,15 @@
     - name: Setup k3s
       ansible.builtin.include_role:
         name: k3s.orchestration.k3s_agent
-  tags: setup
+  tags: provision
 
-- name: Set up Hyperledger Fabric and Caliper environment
+- name: Provision Hyperledger Fabric.
   hosts: server
-  environment:
-    KUBECONFIG: "{{ kubeconfig_path }}"
-    TEST_NETWORK_CLUSTER_RUNTIME: "{{ test_network_cluster_runtime }}"
   tasks:
     - name: Install Hyperledger Fabric
       ansible.builtin.include_role:
         name: jjohn.hyperledger_fabric.install
 
-    - name: Install Hyperledger Caliper
-      ansible.builtin.include_role:
-        name: jjohn.hyperledger_caliper.install
-
-    - name: Bind Hyperledger Caliper
-      ansible.builtin.include_role:
-        name: jjohn.hyperledger_caliper.bind
-  tags: setup
-
-- name: Build docker image and tag it
-  hosts: server
-  environment:
-    KUBECONFIG: "{{ kubeconfig_path }}"
-    TEST_NETWORK_CLUSTER_RUNTIME: "{{ test_network_cluster_runtime }}"
-  vars:
-    test_network_chaincode_image: localhost:5000/electronic_health_record
-  tasks:
-    - name: Copy contracts to samples directory
-      ansible.builtin.copy:
-        src: "{{ playbook_dir }}/files/contract/electronic_health_record/"
-        dest: "{{ fabric_samples_dir }}/electronic_health_record/chaincode/"
-        mode: "0770"
-
-    - name: Build external chaincode image via docker_image
-      community.docker.docker_image:
-        name: electronic_health_record
-        build:
-          path: "{{ fabric_samples_dir }}/electronic_health_record/chaincode/"
-        source: build
-
-    - name: Tag asset-transer-basic image
-      community.docker.docker_image_tag:
-        name: electronic_health_record
-        repository:
-          - "{{ test_network_chaincode_image }}"
-        tag: latest
-
-    - name: Push asset-transfer-basic image
-      community.docker.docker_image_push:
-        name: "{{ test_network_chaincode_image }}"
-  tags: setup
-
-- name: Copy files to Hyperledger Fabric samples directory.
-  hosts: server
-  tasks:
     - name: Copy org CA manifests.
       vars:
         org_files:
@@ -163,7 +115,42 @@
         src: "{{ playbook_dir }}/files/chaincode.sh"
         dest: "{{ fabric_k8s_dir }}/scripts/chaincode.sh"
         mode: preserve
-  tags: setup
+  tags: provision
+
+- name: Build docker image and tag it
+  hosts: server
+  environment:
+    KUBECONFIG: "{{ kubeconfig_path }}"
+    TEST_NETWORK_CHAINCODE_IMAGE: "{{ test_network_chaincode_image }}"
+    TEST_NETWORK_CLUSTER_RUNTIME: "{{ test_network_cluster_runtime }}"
+  vars:
+    chaincode_name: electronic_health_record
+    test_network_chaincode_image: "localhost:5000/{{ chaincode_name }}"
+  tasks:
+    - name: Copy contracts to samples directory
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/files/contract/{{ chaincode_name }}/"
+        dest: "{{ fabric_samples_dir }}/{{ chaincode_name }}/chaincode/"
+        mode: "0770"
+
+    - name: Build external chaincode image via docker_image
+      community.docker.docker_image:
+        name: "{{ chaincode_name }}"
+        build:
+          path: "{{ fabric_samples_dir }}/{{ chaincode_name }}/chaincode/"
+        source: build
+
+    - name: Tag chaincode image
+      community.docker.docker_image_tag:
+        name: "{{ chaincode_name }}"
+        repository:
+          - "{{ test_network_chaincode_image }}"
+        tag: latest
+
+    - name: Push chaincode image
+      community.docker.docker_image_push:
+        name: "{{ test_network_chaincode_image }}"
+  tags: setup_chaincode
 
 - name: Setup Hyperledger Fabric.
   hosts: server
@@ -177,6 +164,12 @@
     TEST_NETWORK_CHAINCODE_SEQUENCE: "1"
     KUBECONFIG: "{{ kubeconfig_path }}"
     TEST_NETWORK_CLUSTER_RUNTIME: "{{ test_network_cluster_runtime }}"
+  vars:
+    chaincode_name: electronic_health_record
+    chaincode_short_names:
+      electronic_health_record: ehr
+      supply_chain_management: scm
+    chaincode_short_name: "{{ chaincode_short_names[chaincode_name] }}"
   tasks:
     - name: Check network script exists
       ansible.builtin.stat:
@@ -224,8 +217,8 @@
           - ./network
           - chaincode
           - deploy
-          - ehr
-          - ../electronic_health_record/chaincode/
+          - "{{ chaincode_short_name }}"
+          - "../{{ chaincode_name }}/chaincode/"
         chdir: "{{ fabric_k8s_dir }}"
       changed_when: false
 
@@ -235,7 +228,7 @@
           - ./network
           - chaincode
           - invoke
-          - ehr
+          - "{{ chaincode_short_name }}"
           - '{"Args":["initLedger"]}'
         chdir: "{{ fabric_k8s_dir }}"
       changed_when: false
@@ -247,7 +240,7 @@
           - rest-easy
         chdir: "{{ fabric_k8s_dir }}"
       changed_when: false
-  tags: fabric_setup
+  tags: setup_fabric
 
 - name: Setup Hyperledger Caliper
   hosts: server
@@ -257,6 +250,14 @@
   vars:
     caliper_dir: "{{ ansible_user_dir }}/caliper-benchmarks"
   tasks:
+    - name: Install Hyperledger Caliper
+      ansible.builtin.include_role:
+        name: jjohn.hyperledger_caliper.install
+
+    - name: Bind Hyperledger Caliper
+      ansible.builtin.include_role:
+        name: jjohn.hyperledger_caliper.bind
+
     - name: Copy connection profiles to Caliper environment
       vars:
         profiles:
@@ -295,11 +296,11 @@
         state: directory
         mode: '0755'
 
-#     - name: Copy readAsset.js to workload directory
-#       ansible.builtin.copy:
-#         src: "{{ playbook_dir }}/files/readAsset.js"
-#         dest: "{{ caliper_dir }}/workload/readAsset.js"
-#         mode: preserve
+    - name: Copy readAsset.js to workload directory
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/files/readAsset.js"
+        dest: "{{ caliper_dir }}/workload/readAsset.js"
+        mode: preserve
 
     - name: Copy ehrWorkload.js to workload directory
       ansible.builtin.copy:
@@ -307,11 +308,11 @@
         dest: "{{ caliper_dir }}/workload/ehrWorkload.js"
         mode: preserve
 
-#     - name: Copy myAssetBenchmark.yaml to benchmarks directory
-#       ansible.builtin.template:
-#         src: "{{ playbook_dir }}/templates/myAssetBenchmark.yaml.j2"
-#         dest: "{{ caliper_dir }}/benchmarks/myAssetBenchmark.yaml"
-#         mode: preserve
+    - name: Copy myAssetBenchmark.yaml to benchmarks directory
+      ansible.builtin.template:
+        src: "{{ playbook_dir }}/templates/myAssetBenchmark.yaml.j2"
+        dest: "{{ caliper_dir }}/benchmarks/myAssetBenchmark.yaml"
+        mode: preserve
 
     - name: Copy ehrBenchmark.yaml to benchmarks directory
       ansible.builtin.template:
@@ -325,7 +326,21 @@
       async: 300
       poll: 0
       changed_when: false
+  tags: setup_caliper
 
+- name: Run Hyperledger Caliper benchmark
+  hosts: server
+  environment:
+    KUBECONFIG: "{{ kubeconfig_path }}"
+    TEST_NETWORK_CLUSTER_RUNTIME: "{{ test_network_cluster_runtime }}"
+  vars:
+    chaincode_name: electronic_health_record
+    chaincode_benchmarks:
+      electronic_health_record: ehrBenchmark.yaml
+      supply_chain_management: scmBenchmark.yaml
+    benchmark_file: "{{ chaincode_benchmarks[chaincode_name] }}"
+    caliper_dir: "{{ ansible_user_dir }}/caliper-benchmarks"
+  tasks:
     - name: Run Caliper benchmark
       ansible.builtin.command:
         argv:
@@ -336,7 +351,7 @@
           - --caliper-workspace
           - .
           - --caliper-benchconfig
-          - benchmarks/ehrBenchmark.yaml
+          - "benchmarks/{{ benchmark_file }}"
           - --caliper-networkconfig
           - networks/fabric/test-network.yaml
         chdir: "{{ caliper_dir }}"

@@ -15,18 +15,36 @@ ansible-galaxy install -r requirements.yaml
 
 ## Execution
 
-The entire project can be set up and run using `run.sh`.
+The entire project can be set up and run using `./run`.
 
-### Setup only K3s cluster
+### Provision nodes and setup Hyperledger Fabric
 
 ```bash
-./run.sh -s
+./run provision
 ```
 
-### Setup only Hyperledger Fabric
+### Setup chaincode
 
 ```bash
-./run.sh -f
+./run setup chaincode -e <ehr|scm>
+```
+
+### Start up Hyperledger Fabric test-network-k8s sample
+
+```bash
+./run setup fabric -e <ehr|scm>
+```
+
+### Setup Hyperledger Caliper
+
+```bash
+./run setup caliper
+```
+
+### Run benchmark
+
+```bash
+./run benchmark -e <ehr|scm>
 ```
 
 ## Variables Required to be Defined

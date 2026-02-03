@@ -1,0 +1,89 @@
+#!/bin/bash
+
+expand_chaincode() {
+    case "$1" in
+        ehr)
+            echo "electronic_health_record"
+            ;;
+        scm)
+            echo "supply_chain_management"
+            ;;
+        *)
+            echo "$1"
+            ;;
+    esac
+}
+
+usage() {
+    echo "Usage:"
+    echo "  ./run.sh                                    Run all tasks"
+    echo "  ./run.sh provision                          Provision nodes"
+    echo "  ./run.sh setup chaincode -e <ehr|scm>       Setup chaincode"
+    echo "  ./run.sh setup fabric -e <ehr|scm>          Setup Hyperledger Fabric"
+    echo "  ./run.sh setup caliper                      Setup Hyperledger Caliper"
+    echo "  ./run.sh benchmark -e <ehr|scm>             Run benchmark"
+    exit 1
+}
+
+command="${1:-}"
+args=""
+
+case "$command" in
+    "")
+        args="--tags all -e chaincode_name=electronic_health_record"
+        ;;
+    provision)
+        args="--tags provision"
+        ;;
+    setup)
+        subcommand="${2:-}"
+        if [ -z "$subcommand" ]; then
+            echo "Error: 'setup' requires a subcommand (chaincode, fabric, caliper)"
+            usage
+        fi
+
+        case "$subcommand" in
+            chaincode)
+                tag="setup_chaincode"
+                requires_chaincode=true
+                ;;
+            fabric)
+                tag="setup_fabric"
+                requires_chaincode=true
+                ;;
+            caliper)
+                tag="setup_caliper"
+                requires_chaincode=false
+                ;;
+            *)
+                echo "Error: Unknown setup subcommand '$subcommand'"
+                usage
+                ;;
+        esac
+
+        if [ "$requires_chaincode" = true ]; then
+            if [ "$3" != "-e" ] || [ -z "$4" ]; then
+                echo "Error: 'setup $subcommand' requires -e <chaincode_name>"
+                usage
+            fi
+            chaincode=$(expand_chaincode "$4")
+            args="--tags $tag -e chaincode_name=$chaincode"
+        else
+            args="--tags $tag"
+        fi
+        ;;
+    benchmark)
+        if [ "$2" != "-e" ] || [ -z "$3" ]; then
+            echo "Error: 'benchmark' requires -e <chaincode_name>"
+            usage
+        fi
+        chaincode=$(expand_chaincode "$3")
+        args="--tags benchmark -e chaincode_name=$chaincode"
+        ;;
+    *)
+        echo "Error: Unknown command '$command'"
+        usage
+        ;;
+esac
+
+ansible-playbook playbooks/site.yaml $args

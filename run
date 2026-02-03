@@ -16,12 +16,12 @@ expand_chaincode() {
 
 usage() {
     echo "Usage:"
-    echo "  ./run.sh                                    Run all tasks"
-    echo "  ./run.sh provision                          Provision nodes"
-    echo "  ./run.sh setup chaincode -e <ehr|scm>       Setup chaincode"
-    echo "  ./run.sh setup fabric -e <ehr|scm>          Setup Hyperledger Fabric"
-    echo "  ./run.sh setup caliper                      Setup Hyperledger Caliper"
-    echo "  ./run.sh benchmark -e <ehr|scm>             Run benchmark"
+    echo "  ./run                                    Run all tasks"
+    echo "  ./run provision                          Provision nodes"
+    echo "  ./run setup chaincode -e <ehr|scm>       Setup chaincode"
+    echo "  ./run setup fabric -e <ehr|scm>          Setup Hyperledger Fabric network"
+    echo "  ./run setup caliper                      Setup Hyperledger Caliper"
+    echo "  ./run benchmark -e <ehr|scm>             Run benchmark"
     exit 1
 }
 

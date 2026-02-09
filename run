@@ -2,6 +2,9 @@
 
 expand_chaincode() {
     case "$1" in
+        atb)
+            echo "asset-transfer-basic"
+            ;;
         ehr)
             echo "electronic_health_record"
             ;;
@@ -18,10 +21,10 @@ usage() {
     echo "Usage:"
     echo "  ./run                                    Run all tasks"
     echo "  ./run provision                          Provision nodes"
-    echo "  ./run setup chaincode -e <ehr|scm>       Setup chaincode"
-    echo "  ./run setup fabric -e <ehr|scm>          Setup Hyperledger Fabric network"
+    echo "  ./run setup chaincode -e <atb|ehr|scm>   Setup chaincode"
+    echo "  ./run setup fabric -e <atb|ehr|scm>      Setup Hyperledger Fabric network"
     echo "  ./run setup caliper                      Setup Hyperledger Caliper"
-    echo "  ./run benchmark -e <ehr|scm>             Run benchmark"
+    echo "  ./run benchmark -e <atb|ehr|scm>         Run benchmark"
     exit 1
 }
 
@@ -30,7 +33,7 @@ args=""
 
 case "$command" in
     "")
-        args="--tags all -e chaincode_name=electronic_health_record"
+        args="--tags all -e chaincode_name=asset-transfer-basic"
         ;;
     provision)
         args="--tags provision"

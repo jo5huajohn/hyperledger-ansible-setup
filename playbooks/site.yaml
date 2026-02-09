@@ -110,11 +110,14 @@
         mode: preserve
       loop: "{{ orderers }}"
 
-    - name: Copy file to scripts.
+    - name: Copy files to scripts.
       ansible.builtin.copy:
-        src: "{{ playbook_dir }}/files/chaincode.sh"
-        dest: "{{ fabric_k8s_dir }}/scripts/chaincode.sh"
+        src: "{{ playbook_dir }}/files/{{ item }}"
+        dest: "{{ fabric_k8s_dir }}/scripts/{{ item }}"
         mode: preserve
+      loop:
+        - chaincode.sh
+        - test_network.sh
   tags: provision
 
 - name: Build docker image and tag it
@@ -125,6 +128,11 @@
     TEST_NETWORK_CLUSTER_RUNTIME: "{{ test_network_cluster_runtime }}"
   vars:
     chaincode_name: electronic_health_record
+    chaincode_paths:
+      asset-transfer-basic: chaincode
+      electronic_health_record: chaincode
+      supply_chain_management: chaincode
+    chaincode_dir: "{{ chaincode_paths[chaincode_name] }}"
     test_network_chaincode_image: "localhost:5000/{{ chaincode_name }}"
   tasks:
     - name: Copy contracts to samples directory
@@ -137,7 +145,7 @@
       community.docker.docker_image:
         name: "{{ chaincode_name }}"
         build:
-          path: "{{ fabric_samples_dir }}/{{ chaincode_name }}/chaincode/"
+          path: "{{ fabric_samples_dir }}/{{ chaincode_name }}/{{ chaincode_dir }}/"
         source: build
 
     - name: Tag chaincode image
@@ -167,9 +175,15 @@
   vars:
     chaincode_name: electronic_health_record
     chaincode_short_names:
+      asset-transfer-basic: asset-transfer-basic
       electronic_health_record: ehr
       supply_chain_management: scm
     chaincode_short_name: "{{ chaincode_short_names[chaincode_name] }}"
+    chaincode_paths:
+      asset-transfer-basic: chaincode
+      electronic_health_record: chaincode
+      supply_chain_management: chaincode
+    chaincode_dir: "{{ chaincode_paths[chaincode_name] }}"
   tasks:
     - name: Check network script exists
       ansible.builtin.stat:
@@ -218,7 +232,7 @@
           - chaincode
           - deploy
           - "{{ chaincode_short_name }}"
-          - "../{{ chaincode_name }}/chaincode/"
+          - "../{{ chaincode_name }}/{{ chaincode_dir }}/"
         chdir: "{{ fabric_k8s_dir }}"
       changed_when: false
 
@@ -229,7 +243,7 @@
           - chaincode
           - invoke
           - "{{ chaincode_short_name }}"
-          - '{"Args":["initLedger"]}'
+          - '{"Args":["InitLedger"]}'
         chdir: "{{ fabric_k8s_dir }}"
       changed_when: false
 
@@ -336,6 +350,7 @@
   vars:
     chaincode_name: electronic_health_record
     chaincode_benchmarks:
+      asset-transfer-basic: myAssetBenchmark.yaml
       electronic_health_record: ehrBenchmark.yaml
       supply_chain_management: scmBenchmark.yaml
     benchmark_file: "{{ chaincode_benchmarks[chaincode_name] }}"

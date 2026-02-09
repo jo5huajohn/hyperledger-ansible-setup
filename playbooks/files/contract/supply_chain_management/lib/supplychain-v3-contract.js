@@ -24,7 +24,7 @@ class SupplychainV3Contract extends Contract {
     }
 
 
-    async initLedger(ctx) {
+    async InitLedger(ctx) {
         console.info('============= START : Initialize Ledger ===========');
         for (let i = 0; i < (seeds.allLogisticUnit.length); i++) {
             const sscc = SSCC.fromJSON(seeds.allLogisticUnit[i].sscc);

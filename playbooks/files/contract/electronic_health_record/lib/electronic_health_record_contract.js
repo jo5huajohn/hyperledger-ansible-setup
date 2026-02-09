@@ -8,7 +8,7 @@ const sha512 = require('js-sha512');
 const seeds = require('./seeds.json');
 
 class ElectronicHealthRecordContract extends Contract {
-    async initLedger(ctx) {
+    async InitLedger(ctx) {
         for (let [key, value] of Object.entries(seeds.allProfile)) {
             const ssn = key;
             const profile = Profile.fromJSON(value);

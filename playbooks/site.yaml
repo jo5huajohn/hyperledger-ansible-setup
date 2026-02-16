@@ -322,6 +322,12 @@
         dest: "{{ caliper_dir }}/workload/ehrWorkload.js"
         mode: preserve
 
+    - name: Copy scmWorkload.js to workload directory
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/files/scmWorkload.js"
+        dest: "{{ caliper_dir }}/workload/scmWorkload.js"
+        mode: preserve
+
     - name: Copy myAssetBenchmark.yaml to benchmarks directory
       ansible.builtin.template:
         src: "{{ playbook_dir }}/templates/myAssetBenchmark.yaml.j2"
@@ -332,6 +338,12 @@
       ansible.builtin.template:
         src: "{{ playbook_dir }}/templates/ehrBenchmark.yaml.j2"
         dest: "{{ caliper_dir }}/benchmarks/ehrBenchmark.yaml"
+        mode: preserve
+
+    - name: Copy scmBenchmark.yaml to benchmarks directory
+      ansible.builtin.template:
+        src: "{{ playbook_dir }}/templates/scmBenchmark.yaml.j2"
+        dest: "{{ caliper_dir }}/benchmarks/scmBenchmark.yaml"
         mode: preserve
 
     - name: Port-forward org1-peer1 service to localhost:7051

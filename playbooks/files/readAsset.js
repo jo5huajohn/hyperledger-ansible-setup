@@ -26,16 +26,39 @@ class MyWorkload extends WorkloadModuleBase {
     }
 
     async submitTransaction() {
-        const randomId = Math.floor(Math.random()*this.roundArguments.assets);
-        const myArgs = {
-            contractId: this.roundArguments.contractId,
-            contractFunction: 'ReadAsset',
-            invokerIdentity: 'User1',
-            contractArguments: [`${this.workerIndex}_${randomId}`],
-            readOnly: true
-        };
+        const randomId = Math.floor(Math.random() * this.roundArguments.assets);
+        const assetID = `${this.workerIndex}_${randomId}`;
 
-        await this.sutAdapter.sendRequests(myArgs);
+        // Randomly decide to read or update
+        const doUpdate = Math.random() < 0.5; // 50% chance update, 50% read
+
+        if (doUpdate) {
+            const newColor = ['red','green','yellow','black'][Math.floor(Math.random()*4)];
+            const newSize = (Math.floor(Math.random() * 100) + 1).toString();
+            const newOwner = `owner_${Math.floor(Math.random() * 10)}`;
+            const newValue = (Math.floor(Math.random() * 1000) + 100).toString();
+
+            console.log(`Worker ${this.workerIndex}: Updating asset ${assetID}`);
+            const updateArgs = {
+                contractId: this.roundArguments.contractId,
+                contractFunction: 'UpdateAsset',
+                invokerIdentity: 'User1',
+                contractArguments: [assetID, newColor, newSize, newOwner, newValue],
+                readOnly: false
+            };
+
+            await this.sutAdapter.sendRequests(updateArgs);
+        } else {
+            const readArgs = {
+                contractId: this.roundArguments.contractId,
+                contractFunction: 'ReadAsset',
+                invokerIdentity: 'User1',
+                contractArguments: [assetID],
+                readOnly: true
+            };
+
+            await this.sutAdapter.sendRequests(readArgs);
+        }
     }
 
     async cleanupWorkloadModule() {

@@ -10,7 +10,7 @@ test:
       rateControl:
         type: fixed-rate
         opts:
-          transactionLoad: {{ caliper_benchmark_rounds_rateControl_opts_transactionLoad }}
+          tps: {{ caliper_benchmark_rounds_rateControl_opts_tps }}
       workload:
         module: workload/readAsset.js
         arguments:

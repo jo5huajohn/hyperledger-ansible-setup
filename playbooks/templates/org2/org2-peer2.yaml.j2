@@ -95,11 +95,11 @@ spec:
               readOnly: true
           resources:
             requests:
-              cpu: "{{ non_endorser_peer_main_resources_requests_cpu }}"
-              memory: "{{ non_endorser_peer_main_resources_requests_memory }}"
+              cpu: "{{ non_endorser_peer2_main_resources_requests_cpu }}"
+              memory: "{{ non_endorser_peer2_main_resources_requests_memory }}"
             limits:
-              cpu: "{{ non_endorser_peer_main_resources_limits_cpu }}"
-              memory: "{{ non_endorser_peer_main_resources_limits_memory }}"
+              cpu: "{{ non_endorser_peer2_main_resources_limits_cpu }}"
+              memory: "{{ non_endorser_peer2_main_resources_limits_memory }}"
         - name: couchdb
           image: couchdb:${COUCHDB_VERSION}
           imagePullPolicy: IfNotPresent
@@ -112,11 +112,11 @@ spec:
               - containerPort: 5984
           resources:
             requests:
-              cpu: "{{ non_endorser_peer_couchdb_resources_requests_cpu }}"
-              memory: "{{ non_endorser_peer_couchdb_resources_requests_memory }}"
+              cpu: "{{ non_endorser_peer2_couchdb_resources_requests_cpu }}"
+              memory: "{{ non_endorser_peer2_couchdb_resources_requests_memory }}"
             limits:
-              cpu: "{{ non_endorser_peer_couchdb_resources_limits_cpu }}"
-              memory: "{{ non_endorser_peer_couchdb_resources_limits_memory }}"
+              cpu: "{{ non_endorser_peer2_couchdb_resources_limits_cpu }}"
+              memory: "{{ non_endorser_peer2_couchdb_resources_limits_memory }}"
       volumes:
         - name: fabric-volume
           persistentVolumeClaim:

@@ -26,13 +26,13 @@ The entire project can be set up and run using `./run`.
 ### Setup chaincode
 
 ```bash
-./run setup chaincode -e <ehr|scm>
+./run setup chaincode -e <atb|ehr|scm>
 ```
 
 ### Start up Hyperledger Fabric test-network-k8s sample
 
 ```bash
-./run setup fabric -e <ehr|scm>
+./run setup fabric -e <atb|ehr|scm>
 ```
 
 ### Setup Hyperledger Caliper
@@ -44,7 +44,7 @@ The entire project can be set up and run using `./run`.
 ### Run benchmark
 
 ```bash
-./run benchmark -e <ehr|scm>
+./run benchmark -e <atb|ehr|scm>
 ```
 
 ## Variables Required to be Defined
